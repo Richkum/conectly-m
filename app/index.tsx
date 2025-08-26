@@ -1,9 +1,22 @@
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
+import { useEffect } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import ThemeToggleButton from "../components/ThemeToggleButton";
 
 export default function Index() {
+  const { authState, isLoading } = useAuth();
+
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (authState?.authenticated) {
+        router.replace("/(app)/chats"); // go to chats screen
+      }
+      // else stay on landing page
+    }
+  }, [isLoading, authState?.authenticated]);
 
   const handleGetStarted = () => {
     router.push("/(auth)/signup");
