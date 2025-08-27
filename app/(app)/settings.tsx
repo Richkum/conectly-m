@@ -1,3 +1,4 @@
+import LogoutButton from "@/components/LogoutButton";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
@@ -245,14 +246,7 @@ export default function SettingsScreen() {
 
       {/* Logout Button */}
       <View className="px-6 py-8">
-        <TouchableOpacity
-          onPress={handleLogout}
-          className="bg-functional-red-DEFAULT py-4 rounded-full items-center"
-          activeOpacity={0.8}
-        >
-          <Text className="text-white font-semibold text-lg">Log Out</Text>
-        </TouchableOpacity>
-
+        <LogoutButton />
         <Text className="text-text-secondary dark:text-text-secondary-dark text-center mt-6">
           Connectly v1.0.0
         </Text>

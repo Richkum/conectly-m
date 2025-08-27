@@ -1,4 +1,5 @@
 import axios from "axios";
+import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
@@ -108,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       console.log("Login process completed successfully");
+      router.replace("/(app)/chats");
       return result; // Return the result in case the component needs it
     } catch (error) {
       console.error("Login failed:", error);
