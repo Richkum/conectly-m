@@ -156,7 +156,7 @@ export default function ChatScreen() {
           <Text className="text-xl font-bold text-white">Connectly</Text>
           <View className="flex-row">
             <TouchableOpacity className="ml-4">
-              <Text className="text-white text-lg">🔍</Text>
+              {/* <Text className="text-white text-lg">🔍</Text> */}
             </TouchableOpacity>
             <TouchableOpacity className="ml-4">
               <Text className="text-white text-lg">⋮</Text>
@@ -191,6 +191,7 @@ export default function ChatScreen() {
       <TouchableOpacity
         className="absolute bottom-6 right-6 w-16 h-16 bg-primary dark:bg-primary-dark rounded-full items-center justify-center shadow-lg"
         activeOpacity={0.8}
+        onPress={() => router.push("/screen/search")}
       >
         <Text className="text-white text-3xl">+</Text>
       </TouchableOpacity>
