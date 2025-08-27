@@ -2,17 +2,17 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+import LoadingScreen from "../components/LoadingScreen";
 import ThemeToggleButton from "../components/ThemeToggleButton";
 
 export default function Index() {
   const { authState, isLoading } = useAuth();
-
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading) {
       if (authState?.authenticated) {
-        router.replace("/(app)/chats"); // go to chats screen
+        router.replace("/(app)/chats");
       }
       // else stay on landing page
     }
@@ -26,6 +26,12 @@ export default function Index() {
     router.push("/(auth)/signin");
   };
 
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  // Show landing page only if not authenticated and not loading
   return (
     <View className="flex-1 justify-center items-center bg-background dark:bg-background-dark p-6">
       {/* Logo/App Name */}
