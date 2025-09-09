@@ -86,15 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // 6. Login Function
   const login = async (email: string, password: string) => {
-    console.log("=== Login Process Started ===");
     console.log("Login attempt for email:", email);
     try {
       const result = await api.post("/auth/login", { email, password });
-      console.log("Login API response received");
 
       // Assuming your backend returns { token, user }
       const { token, user } = result.data;
-      console.log("Login successful, token received:", token ? "YES" : "NO");
 
       // Update axios default headers and secure storage
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -112,7 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       router.replace("/(app)/chats");
       return result; // Return the result in case the component needs it
     } catch (error) {
-      console.error("Login failed:", error);
       console.error("Login error details:", (error as any).response?.data);
       setAuthState({
         token: null,
@@ -128,7 +124,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // 7. Register Function (that also logs the user in automatically)
   const register = async (email: string, password: string, name: string) => {
-    console.log("=== Register Process Started ===");
     console.log("Registration attempt for:", {
       email,
       name,
@@ -144,14 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       console.log("Registration API response received:", result.status);
-      console.log("Registration response data:", result.data);
 
       // 2. Assuming your backend returns the token and user on successful registration, log them in.
       const { token, user } = result.data;
-      console.log(
-        "Registration successful, token received:",
-        token ? "YES" : "NO"
-      );
 
       // 3. Store the token and user, update state (same as login)
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -171,10 +161,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error(
         "Registration error details:",
         (error as any).response?.data
-      );
-      console.error(
-        "Registration error status:",
-        (error as any).response?.status
       );
       setAuthState({
         token: null,
@@ -214,13 +200,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isLoading,
   };
 
-  console.log("AuthProvider value being provided:", {
-    onRegister: typeof register,
-    onLogin: typeof login,
-    onLogout: typeof logout,
-    authState,
-    isLoading,
-  });
+  // console.log("AuthProvider value being provided:", {
+  //   onRegister: typeof register,
+  //   onLogin: typeof login,
+  //   onLogout: typeof logout,
+  //   authState,
+  //   isLoading,
+  // });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
@@ -228,13 +214,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 // 10. Custom Hook to use the Auth context easily
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  console.log("useAuth called, returning:", {
-    onRegister: typeof context.onRegister,
-    onLogin: typeof context.onLogin,
-    onLogout: typeof context.onLogout,
-    authState: context.authState,
-    isLoading: context.isLoading,
-  });
+  // console.log("useAuth called, returning:", {
+  //   onRegister: typeof context.onRegister,
+  //   onLogin: typeof context.onLogin,
+  //   onLogout: typeof context.onLogout,
+  //   authState: context.authState,
+  //   isLoading: context.isLoading,
+  // });
   return context;
 };
 

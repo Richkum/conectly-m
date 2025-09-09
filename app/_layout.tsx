@@ -12,6 +12,10 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
           <Stack.Screen name="screen" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="(conversation)"
+            options={{ headerShown: false }}
+          />
         </Stack>
       </ThemeProvider>
     </AuthProvider>
