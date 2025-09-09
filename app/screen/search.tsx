@@ -1,8 +1,13 @@
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   Text,
@@ -11,137 +16,209 @@ import {
   View,
 } from "react-native";
 
-// Mock data for search history
-const initialSearchHistory = [
-  {
-    id: "1",
-    name: "John Doe",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-  },
-  {
-    id: "2",
-    name: "Sarah",
-    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-  },
-  {
-    id: "3",
-    name: "Mike Wilson",
-    avatar: "https://randomuser.me/api/portraits/men/3.jpg",
-  },
-  {
-    id: "4",
-    name: "Emily",
-    avatar: "https://randomuser.me/api/portraits/women/4.jpg",
-  },
-  {
-    id: "5",
-    name: "Design Team",
-    avatar: "https://randomuser.me/api/portraits/women/6.jpg",
-  },
-];
+// 1. IMPORT your useAuth hook and the configured axios instance (api)
 
-// Mock data for search results
-const mockUsers = [
-  {
-    id: "1",
-    name: "John Doe",
-    username: "@johndoe",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-  },
-  {
-    id: "6",
-    name: "John Smith",
-    username: "@johnsmith",
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-  },
-  {
-    id: "7",
-    name: "Johnny Davis",
-    username: "@johnd",
-    avatar: "https://randomuser.me/api/portraits/men/33.jpg",
-  },
-  {
-    id: "8",
-    name: "Johnson Mike",
-    username: "@johnsonm",
-    avatar: "https://randomuser.me/api/portraits/men/44.jpg",
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    username: "@sarahj",
-    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-  },
-  {
-    id: "3",
-    name: "Mike Wilson",
-    username: "@mikew",
-    avatar: "https://randomuser.me/api/portraits/men/3.jpg",
-  },
-];
+// Define the structure of a user from the API response
+interface ApiUser {
+  _id: string;
+  name: string;
+  bio?: string;
+  profilePicture?: string;
+}
+
+// Define the structure of a user for the UI
+interface DisplayUser {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+}
+
+// Define the structure for search history items
+interface HistoryItem {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
+const DEFAULT_AVATAR = "https://i.pravatar.cc/150";
+const BACKEND_URL = "http://192.168.1.167:5000";
+const SEARCH_HISTORY_KEY = "search_history";
 
 export default function SearchScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchHistory, setSearchHistory] = useState(initialSearchHistory);
-  const [searchResults, setSearchResults] = useState<
-    { id: string; name: string; username: string; avatar: string }[]
-  >([]);
-  const [isSearching, setIsSearching] = useState(false);
+  // 2. GET the authState from your context
+  const { authState } = useAuth();
 
-  // Filter users based on search query
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchHistory, setSearchHistory] = useState<HistoryItem[]>([]);
+  const [searchResults, setSearchResults] = useState<DisplayUser[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 3. REFACTOR fetchUsers to use the 'api' (axios) instance
+  const fetchUsers = useCallback(
+    async (query: string) => {
+      if (query.trim().length < 1 || !authState?.token) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        console.log(
+          "Sending request to:",
+          BACKEND_URL + "/users/search",
+          "with query:",
+          query
+        );
+
+        const response = await axios.get(`${BACKEND_URL}/users/search`, {
+          params: { q: query },
+          headers: {
+            Authorization: `Bearer ${authState.token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        const users: ApiUser[] = response.data;
+
+        const formattedUsers: DisplayUser[] = users.map((user) => ({
+          id: user._id,
+          name: user.name,
+          username:
+            user.bio || `@${user.name.replace(/\s+/g, "").toLowerCase()}`,
+          avatar: user.profilePicture || DEFAULT_AVATAR,
+        }));
+
+        setSearchResults(formattedUsers);
+      } catch (error) {
+        console.error("Error searching for users:", error);
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [authState?.token]
+  );
+
+  // This useEffect for debouncing remains the same and will work perfectly
   useEffect(() => {
-    if (searchQuery.length > 1) {
-      setIsSearching(true);
-      const filtered = mockUsers.filter(
-        (user) =>
-          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setSearchResults(filtered);
+    const isSearching = searchQuery.length > 0;
+    if (isSearching) {
+      const handler = setTimeout(() => {
+        fetchUsers(searchQuery);
+      }, 300);
+      return () => {
+        clearTimeout(handler);
+      };
     } else {
-      setIsSearching(false);
       setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, fetchUsers]);
 
-  const handleUserSelect = (user: {
-    id: any;
-    name?: string;
-    avatar?: string;
-    username?: string;
-  }) => {
-    // Add to search history if not already there
-    if (!searchHistory.some((item) => item.id === user.id)) {
-      setSearchHistory([
-        {
-          id: user.id,
-          name: user.name || "", // Provide a default value
-          avatar: user.avatar || "", // Provide a default value
-        },
-        ...searchHistory,
-      ]);
+  // Load search history on component mount
+  useEffect(() => {
+    loadSearchHistory();
+  }, []);
+
+  const loadSearchHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+      if (stored) {
+        setSearchHistory(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error("Error loading search history:", error);
     }
-    // Navigate to chat with this user
-    // router.push(`/chat/${user.id}`);
   };
 
-  const removeFromHistory = (id: string) => {
-    setSearchHistory(searchHistory.filter((item) => item.id !== id));
+  const saveSearchHistory = async (history: HistoryItem[]) => {
+    try {
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+    } catch (error) {
+      console.error("Error saving search history:", error);
+    }
   };
 
-  const clearSearchHistory = () => {
+  const handleUserSelect = async (user: DisplayUser | HistoryItem) => {
+    // Create new history array
+    let newHistory = [...searchHistory];
+
+    // Remove if already exists to avoid duplicates
+    newHistory = newHistory.filter((item) => item.id !== user.id);
+
+    // Add to beginning
+    const historyItem: HistoryItem = {
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar || DEFAULT_AVATAR,
+    };
+    newHistory = [historyItem, ...newHistory];
+
+    // Limit to 10 recent searches
+    newHistory = newHistory.slice(0, 10);
+
+    // Update state and save
+    setSearchHistory(newHistory);
+    await saveSearchHistory(newHistory);
+
+    // Create or find chat with this user
+    try {
+      if (!authState?.token) {
+        console.error("No auth token found");
+        return;
+      }
+
+      setIsLoading(true);
+
+      const response = await axios.post(
+        `${BACKEND_URL}/chats/direct`,
+        { otherUserId: user.id },
+        {
+          headers: {
+            Authorization: `Bearer ${authState.token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const chatData = response.data;
+      console.log("Chat created/found:", chatData);
+
+      // Navigate to conversation screen
+      router.push({
+        pathname: "/(conversation)/[id]",
+        params: {
+          id: chatData.id,
+          chatName: user.name,
+          userAvatar: user.avatar || DEFAULT_AVATAR,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating/finding chat:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removeFromHistory = async (id: string) => {
+    const newHistory = searchHistory.filter((item) => item.id !== id);
+    setSearchHistory(newHistory);
+    await saveSearchHistory(newHistory);
+  };
+
+  const clearSearchHistory = async () => {
     setSearchHistory([]);
+    await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
   };
 
-  const renderSearchHistoryItem = ({
-    item,
-  }: {
-    item: { id: string; name: string; avatar: string };
-  }) => (
+  // --- NO CHANGES to any of the rendering logic below this line ---
+
+  const renderSearchHistoryItem = ({ item }: { item: HistoryItem }) => (
     <View className="relative mr-4 items-center">
       <TouchableOpacity
         onPress={() => handleUserSelect(item)}
@@ -167,11 +244,7 @@ export default function SearchScreen() {
     </View>
   );
 
-  const renderSearchResult = ({
-    item,
-  }: {
-    item: { id: string; name: string; username: string; avatar: string };
-  }) => (
+  const renderSearchResult = ({ item }: { item: DisplayUser }) => (
     <TouchableOpacity
       className="flex-row items-center p-4 border-b border-element-border dark:border-element-border-dark"
       onPress={() => handleUserSelect(item)}
@@ -200,7 +273,6 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1 bg-background dark:bg-background-dark">
-      {/* Header with Search Bar */}
       <View className="bg-primary dark:bg-primary-dark pt-12 px-4 pb-4">
         <View className="flex-row items-center mb-4">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
@@ -210,8 +282,6 @@ export default function SearchScreen() {
             Search Users
           </Text>
         </View>
-
-        {/* Search Input */}
         <View className="bg-background dark:bg-background-secondary-dark rounded-lg px-4 py-3 flex-row items-center">
           <Ionicons
             name="search"
@@ -220,7 +290,7 @@ export default function SearchScreen() {
           />
           <TextInput
             className="flex-1 text-text dark:text-text-dark ml-2"
-            placeholder="Search by name or username"
+            placeholder="Search by name"
             placeholderTextColor={isDark ? "#8696A0" : "#54656F"}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -237,9 +307,7 @@ export default function SearchScreen() {
           )}
         </View>
       </View>
-
-      {/* Search History */}
-      {searchHistory.length > 0 && !isSearching && (
+      {searchHistory.length > 0 && searchQuery.length === 0 && (
         <View className="px-4 py-4 border-b border-element-border dark:border-element-border-dark">
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-text-secondary dark:text-text-secondary-dark font-medium">
@@ -261,43 +329,46 @@ export default function SearchScreen() {
           />
         </View>
       )}
-
-      {/* Search Results */}
-      {isSearching && (
+      {searchQuery.length > 0 && (
         <FlatList
           data={searchResults}
           renderItem={renderSearchResult}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={
             <View className="items-center justify-center py-10">
-              <Ionicons
-                name="search-outline"
-                size={48}
-                color={isDark ? "#8696A0" : "#54656F"}
-              />
-              <Text className="text-text-secondary dark:text-text-secondary-dark mt-2 text-center">
-                No users found for "{searchQuery}"
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator
+                  size="large"
+                  color={isDark ? "#00A884" : "#25D366"}
+                />
+              ) : (
+                <>
+                  <Ionicons
+                    name="search-outline"
+                    size={48}
+                    color={isDark ? "#8696A0" : "#54656F"}
+                  />
+                  <Text className="text-text-secondary dark:text-text-secondary-dark mt-2 text-center">
+                    No users found for "{searchQuery}"
+                  </Text>
+                </>
+              )}
             </View>
           }
         />
       )}
-
-      {/* Empty State when not searching */}
-      {!isSearching &&
-        searchQuery.length === 0 &&
-        searchHistory.length === 0 && (
-          <View className="flex-1 items-center justify-center px-4">
-            <Ionicons
-              name="search-outline"
-              size={64}
-              color={isDark ? "#8696A0" : "#54656F"}
-            />
-            <Text className="text-text-secondary dark:text-text-secondary-dark mt-4 text-center text-lg">
-              Search for users by name or username
-            </Text>
-          </View>
-        )}
+      {searchQuery.length === 0 && searchHistory.length === 0 && (
+        <View className="flex-1 items-center justify-center px-4">
+          <Ionicons
+            name="search-outline"
+            size={64}
+            color={isDark ? "#8696A0" : "#54656F"}
+          />
+          <Text className="text-text-secondary dark:text-text-secondary-dark mt-4 text-center text-lg">
+            Search for users by name
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
